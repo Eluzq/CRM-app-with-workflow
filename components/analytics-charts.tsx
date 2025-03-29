@@ -1,5 +1,6 @@
 "use client"
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   BarChart,
   Bar,
@@ -15,8 +16,7 @@ import {
   Cell,
   Legend,
 } from "recharts"
-import { TabsContent } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // ダミーデータ
 const monthlyData = [
@@ -40,7 +40,12 @@ const COLORS = ["#FF0000", "#000000", "#AAAAAA", "#666666"]
 
 export default function AnalyticsCharts() {
   return (
-    <>
+    <Tabs defaultValue="email" className="w-[400px]">
+      <TabsList>
+        <TabsTrigger value="email">メール</TabsTrigger>
+        <TabsTrigger value="customers">顧客</TabsTrigger>
+        <TabsTrigger value="workflow">ワークフロー</TabsTrigger>
+      </TabsList>
       <TabsContent value="email" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
@@ -119,7 +124,7 @@ export default function AnalyticsCharts() {
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
-                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {customerSourceData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -198,6 +203,7 @@ export default function AnalyticsCharts() {
           </CardContent>
         </Card>
       </TabsContent>
-    </>
+    </Tabs>
   )
-} 
+}
+

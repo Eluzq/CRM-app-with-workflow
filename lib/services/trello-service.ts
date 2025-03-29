@@ -1,8 +1,8 @@
 import fetch from "node-fetch"
 
-const TRELLO_API_KEY = process.env.TRELLO_API_KEY
-const TRELLO_TOKEN = process.env.TRELLO_TOKEN
-const TRELLO_BOARD_ID = process.env.TRELLO_BOARD_ID
+const TRELLO_API_KEY = process.env.TRELLO_API_KEY || ""
+const TRELLO_TOKEN = process.env.TRELLO_TOKEN || ""
+const TRELLO_BOARD_ID = process.env.TRELLO_BOARD_ID || ""
 const TRELLO_API_URL = "https://api.trello.com/1"
 
 export interface TrelloCard {
@@ -22,6 +22,10 @@ export interface TrelloList {
 export const trelloService = {
   async getLists(): Promise<TrelloList[]> {
     try {
+      if (!TRELLO_API_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_ID) {
+        throw new Error("Trello API credentials are missing")
+      }
+
       const response = await fetch(
         `${TRELLO_API_URL}/boards/${TRELLO_BOARD_ID}/lists?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`,
       )
@@ -30,7 +34,8 @@ export const trelloService = {
         throw new Error(`Trello API error: ${response.status}`)
       }
 
-      return await response.json()
+      // 型アサーションを使用して、APIレスポンスをTrelloList[]として扱う
+      return (await response.json()) as TrelloList[]
     } catch (error) {
       console.error("Error fetching Trello lists:", error)
       // 安全にエラーメッセージを抽出
@@ -42,6 +47,10 @@ export const trelloService = {
 
   async getCards(listId: string): Promise<TrelloCard[]> {
     try {
+      if (!TRELLO_API_KEY || !TRELLO_TOKEN) {
+        throw new Error("Trello API credentials are missing")
+      }
+
       const response = await fetch(
         `${TRELLO_API_URL}/lists/${listId}/cards?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`,
       )
@@ -50,7 +59,8 @@ export const trelloService = {
         throw new Error(`Trello API error: ${response.status}`)
       }
 
-      return await response.json()
+      // 型アサーションを使用して、APIレスポンスをTrelloCard[]として扱う
+      return (await response.json()) as TrelloCard[]
     } catch (error) {
       console.error("Error fetching Trello cards:", error)
       // 安全にエラーメッセージを抽出
@@ -62,9 +72,13 @@ export const trelloService = {
 
   async createCard(listId: string, card: { name: string; desc: string; due?: string }): Promise<TrelloCard> {
     try {
+      if (!TRELLO_API_KEY || !TRELLO_TOKEN) {
+        throw new Error("Trello API credentials are missing")
+      }
+
       const params = new URLSearchParams({
-        key: TRELLO_API_KEY as string,
-        token: TRELLO_TOKEN as string,
+        key: TRELLO_API_KEY,
+        token: TRELLO_TOKEN,
         idList: listId,
         name: card.name,
         desc: card.desc,
@@ -83,7 +97,8 @@ export const trelloService = {
         throw new Error(`Trello API error: ${response.status}`)
       }
 
-      return await response.json()
+      // 型アサーションを使用して、APIレスポンスをTrelloCardとして扱う
+      return (await response.json()) as TrelloCard
     } catch (error) {
       console.error("Error creating Trello card:", error)
       // 安全にエラーメッセージを抽出
@@ -98,9 +113,13 @@ export const trelloService = {
     updates: { name?: string; desc?: string; idList?: string; due?: string },
   ): Promise<TrelloCard> {
     try {
+      if (!TRELLO_API_KEY || !TRELLO_TOKEN) {
+        throw new Error("Trello API credentials are missing")
+      }
+
       const params = new URLSearchParams({
-        key: TRELLO_API_KEY as string,
-        token: TRELLO_TOKEN as string,
+        key: TRELLO_API_KEY,
+        token: TRELLO_TOKEN,
         ...updates,
       })
 
@@ -116,7 +135,8 @@ export const trelloService = {
         throw new Error(`Trello API error: ${response.status}`)
       }
 
-      return await response.json()
+      // 型アサーションを使用して、APIレスポンスをTrelloCardとして扱う
+      return (await response.json()) as TrelloCard
     } catch (error) {
       console.error("Error updating Trello card:", error)
       // 安全にエラーメッセージを抽出
@@ -128,6 +148,10 @@ export const trelloService = {
 
   async deleteCard(cardId: string): Promise<void> {
     try {
+      if (!TRELLO_API_KEY || !TRELLO_TOKEN) {
+        throw new Error("Trello API credentials are missing")
+      }
+
       const response = await fetch(`${TRELLO_API_URL}/cards/${cardId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`, {
         method: "DELETE",
       })
@@ -145,17 +169,34 @@ export const trelloService = {
   },
 
   // Trelloのタスクをローカルのタスク形式に変換するユーティリティ
-  mapTrelloCardToTask(card: TrelloCard, listName: string): any {
-    const priority = card.labels?.find((label) => ["高", "中", "低"].includes(label.name))?.name || "中"
+  mapTrelloCardToTask(card: TrelloCard, listName: string) {
+    // ラベルから優先度を取得
+    let priority = "中"
+    if (card.labels && card.labels.length > 0) {
+      const priorityLabel = card.labels.find((label) => ["高", "中", "低"].includes(label.name))
+      if (priorityLabel) {
+        priority = priorityLabel.name
+      }
+    }
+
+    // ラベルから担当者を取得
+    let assignee = ""
+    if (card.labels && card.labels.length > 0) {
+      const assigneeLabel = card.labels.find((label) => !["高", "中", "低"].includes(label.name))
+      if (assigneeLabel) {
+        assignee = assigneeLabel.name
+      }
+    }
 
     return {
       id: card.id,
       title: card.name,
       description: card.desc,
       dueDate: card.due ? new Date(card.due).toISOString().split("T")[0] : "",
-      assignee: card.labels?.find((label) => !["高", "中", "低"].includes(label.name))?.name || "",
+      assignee,
       priority,
       status: mapTrelloListToStatus(listName),
+      trelloCardId: card.id,
     }
   },
 }

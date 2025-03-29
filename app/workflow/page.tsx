@@ -59,7 +59,10 @@ export default function WorkflowPage() {
 
   const fetchTasks = async () => {
     try {
-      const allTasks = await taskService.getTasks()
+      const allTasks = await taskService.getTasks().catch((err) => {
+        console.error("Error fetching tasks:", err)
+        return []
+      })
 
       // Group tasks by status
       const groupedTasks: TaskState = {
@@ -90,6 +93,13 @@ export default function WorkflowPage() {
 
   const handleAddTask = async () => {
     try {
+      if (!newTask.title || !newTask.description) {
+        toast.error("タスク情報が不完全です", {
+          description: "タイトルと説明は必須です。",
+        })
+        return
+      }
+
       const id = await taskService.addTask(newTask)
 
       // Update local state
@@ -143,15 +153,18 @@ export default function WorkflowPage() {
     setSyncingWithTrello(true)
     try {
       const response = await fetch("/api/trello/sync")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
       const data = await response.json()
 
       if (data.success) {
         // Trelloから取得したタスクでローカルを更新
         const groupedTasks: TaskState = {
-          planning: data.tasks.filter((task: Task) => task.status === "planning"),
-          inProgress: data.tasks.filter((task: Task) => task.status === "inProgress"),
-          review: data.tasks.filter((task: Task) => task.status === "review"),
-          completed: data.tasks.filter((task: Task) => task.status === "completed"),
+          planning: data.tasks.filter((task: Task) => task.status === "planning") || [],
+          inProgress: data.tasks.filter((task: Task) => task.status === "inProgress") || [],
+          review: data.tasks.filter((task: Task) => task.status === "review") || [],
+          completed: data.tasks.filter((task: Task) => task.status === "completed") || [],
         }
 
         setTasks(groupedTasks)
@@ -178,6 +191,11 @@ export default function WorkflowPage() {
   // タスク削除機能
   const handleDeleteTask = async (taskId: string, status: TaskStatus) => {
     try {
+      if (!taskId) {
+        console.error("Invalid task ID")
+        return
+      }
+
       await taskService.deleteTask(taskId)
 
       // ローカル状態を更新
@@ -195,7 +213,6 @@ export default function WorkflowPage() {
 
   // ドラッグ＆ドロップ処理
   const handleDragEnd = (result: DropResult) => {
-    console.log("Drag end result:", result)
     const { source, destination } = result
 
     // ドロップ先がない場合は何もしない
@@ -211,6 +228,13 @@ export default function WorkflowPage() {
     // ドラッグしたタスクを取得
     const sourceStatus = source.droppableId as TaskStatus
     const destinationStatus = destination.droppableId as TaskStatus
+
+    // 安全チェック
+    if (!tasks[sourceStatus] || !tasks[sourceStatus][source.index]) {
+      console.error("Invalid source task")
+      return
+    }
+
     const taskToMove = tasks[sourceStatus][source.index]
 
     if (!taskToMove || !taskToMove.id) {
@@ -442,7 +466,7 @@ export default function WorkflowPage() {
                                             移動
                                           </DropdownMenuItem>
                                           <DropdownMenuItem
-                                            onClick={() => handleDeleteTask(task.id || "", status)}
+                                            onClick={() => task.id && handleDeleteTask(task.id, status)}
                                             className="text-destructive"
                                           >
                                             <Trash2 className="h-4 w-4 mr-2" />

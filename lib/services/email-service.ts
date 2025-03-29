@@ -1,8 +1,9 @@
 import { db } from "@/lib/firebase"
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
 
+// EmailTemplateインターフェースのidプロパティを必須にします
 export interface EmailTemplate {
-  id?: string
+  id: string // 以前は id?: string でした
   name: string
   subject: string
   content: string
@@ -25,13 +26,19 @@ export interface EmailCampaign {
 
 export const emailService = {
   // Email Templates
+  // getTemplatesメソッドを修正して、必ずidを持つオブジェクトを返すようにします
   async getTemplates(): Promise<EmailTemplate[]> {
-    const templatesRef = collection(db, "emailTemplates")
-    const snapshot = await getDocs(query(templatesRef, orderBy("createdAt", "desc")))
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as EmailTemplate[]
+    try {
+      const templatesRef = collection(db, "emailTemplates")
+      const snapshot = await getDocs(query(templatesRef, orderBy("createdAt", "desc")))
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as EmailTemplate[]
+    } catch (error) {
+      console.error("Error fetching templates:", error)
+      return []
+    }
   },
 
   async getTemplate(id: string): Promise<EmailTemplate | null> {

@@ -24,7 +24,7 @@ export default function NewSchedulePage() {
     name: "",
     templateId: "",
     recipients: "",
-    scheduledDate: new Date().toISOString().split("T")[0],
+    scheduledDate: new Date().toISOString().split("T")[0] || "2023-01-01",
     scheduledTime: "09:00",
     trackOpens: true,
   })
@@ -32,7 +32,10 @@ export default function NewSchedulePage() {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const templatesData = await emailService.getTemplates()
+        const templatesData = await emailService.getTemplates().catch((err) => {
+          console.error("Error fetching templates:", err)
+          return []
+        })
         setTemplates(templatesData)
       } catch (error) {
         console.error("Error fetching templates:", error)
@@ -132,8 +135,8 @@ export default function NewSchedulePage() {
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
+                      <SelectItem key={template.id || ""} value={template.id || ""}>
+                        {template.name || "名前なし"}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { trelloService, mapStatusToTrelloList } from "@/lib/services/trello-service"
-import { taskService } from "@/lib/services/task-service"
+import { taskService, type Task } from "@/lib/services/task-service"
 
 export async function GET() {
   try {
@@ -8,14 +8,19 @@ export async function GET() {
     const lists = await trelloService.getLists()
 
     // 各リストのカードを取得してタスクに変換
-    const tasks = []
+    const tasks: Task[] = []
 
     for (const list of lists) {
-      const cards = await trelloService.getCards(list.id)
+      try {
+        const cards = await trelloService.getCards(list.id)
 
-      for (const card of cards) {
-        const task = trelloService.mapTrelloCardToTask(card, list.name)
-        tasks.push(task)
+        for (const card of cards) {
+          const task = trelloService.mapTrelloCardToTask(card, list.name) as Task
+          tasks.push(task)
+        }
+      } catch (cardError) {
+        console.error(`Error fetching cards for list ${list.id}:`, cardError)
+        // 個別のリストのエラーは無視して続行
       }
     }
 
@@ -34,6 +39,10 @@ export async function POST(request: Request) {
   try {
     const { task } = await request.json()
 
+    if (!task || !task.status) {
+      return NextResponse.json({ success: false, error: "Invalid task data" }, { status: 400 })
+    }
+
     // タスクのステータスに対応するTrelloリストを取得
     const listName = mapStatusToTrelloList(task.status)
     const lists = await trelloService.getLists()
@@ -45,14 +54,16 @@ export async function POST(request: Request) {
 
     // Trelloカードを作成
     const card = await trelloService.createCard(targetList.id, {
-      name: task.title,
-      desc: task.description,
+      name: task.title || "Untitled Task",
+      desc: task.description || "",
       due: task.dueDate ? new Date(task.dueDate).toISOString() : undefined,
     })
 
     // 作成されたカードのIDをタスクに追加して保存
-    const updatedTask = { ...task, trelloCardId: card.id }
-    await taskService.updateTask(task.id, { trelloCardId: card.id })
+    const updatedTask = { ...task, trelloCardId: card.id } as Task
+    if (task.id) {
+      await taskService.updateTask(task.id, { trelloCardId: card.id })
+    }
 
     return NextResponse.json({ success: true, task: updatedTask })
   } catch (error) {

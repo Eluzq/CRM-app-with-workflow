@@ -88,7 +88,7 @@ export default function Dashboard() {
           }
         })
 
-        setEmailStats(emailStatsData)
+        setEmailStats(emailStatsData as any)
 
         // Set pie chart data
         setPieData([
@@ -119,7 +119,7 @@ export default function Dashboard() {
           開封数: 0,
         }))
 
-        setEmailStats(emailStatsData)
+        setEmailStats(emailStatsData as any)
 
         // Set empty pie chart data
         setPieData([

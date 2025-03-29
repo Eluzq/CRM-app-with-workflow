@@ -25,8 +25,14 @@ export default function EmailSchedulePage() {
     try {
       setLoading(true)
       const [schedulesData, templatesData] = await Promise.all([
-        scheduleService.getSchedules(),
-        emailService.getTemplates(),
+        scheduleService.getSchedules().catch((err) => {
+          console.error("Error fetching schedules:", err)
+          return []
+        }),
+        emailService.getTemplates().catch((err) => {
+          console.error("Error fetching templates:", err)
+          return []
+        }),
       ])
 
       setSchedules(schedulesData)
@@ -177,10 +183,10 @@ export default function EmailSchedulePage() {
                           {getStatusText(schedule.status)}
                         </span>
                       </TableCell>
-                      <TableCell>{new Date(schedule.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(schedule.createdAt || 0).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         {schedule.status === "scheduled" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSchedule(schedule.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSchedule(schedule.id!)}>
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         )}
