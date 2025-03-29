@@ -42,7 +42,7 @@ export default function Sidebar() {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-primary">CRM System</h1>
+        <h1 className="text-2xl font-bold text-primary">CRM Hybrid</h1>
       </div>
       <nav className="flex-1 p-4">
         <ul className="space-y-1">

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, MoreHorizontal, Calendar, User, RefreshCw, Trash2, Edit, MoveVertical, GripVertical } from "lucide-react"
+import { Plus, MoreHorizontal, Calendar, User, Trash2, Edit, MoveVertical, GripVertical } from "lucide-react"
 import { type Task, taskService } from "@/lib/services/task-service"
 import { toast } from "sonner"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -43,7 +43,6 @@ export default function WorkflowPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [syncingWithTrello, setSyncingWithTrello] = useState(false)
   const [newTask, setNewTask] = useState<Task>({
     title: "",
     description: "",
@@ -124,67 +123,12 @@ export default function WorkflowPage() {
         description: "新しいタスクが正常に保存されました。",
       })
 
-      // Trelloにも同期
-      try {
-        await fetch("/api/trello/sync", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ task: { ...newTask, id } }),
-        })
-      } catch (trelloError) {
-        console.error("Error syncing with Trello:", trelloError)
-        toast.error("Trelloとの同期に失敗しました", {
-          description: "タスクはローカルに保存されましたが、Trelloとの同期に失敗しました。",
-        })
-      }
-
       setIsDialogOpen(false)
     } catch (error) {
       console.error("Error adding task:", error)
       toast.error("エラーが発生しました", {
         description: "タスクの保存中にエラーが発生しました。",
       })
-    }
-  }
-
-  const syncWithTrello = async () => {
-    setSyncingWithTrello(true)
-    try {
-      const response = await fetch("/api/trello/sync")
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const data = await response.json()
-
-      if (data.success) {
-        // Trelloから取得したタスクでローカルを更新
-        const groupedTasks: TaskState = {
-          planning: data.tasks.filter((task: Task) => task.status === "planning") || [],
-          inProgress: data.tasks.filter((task: Task) => task.status === "inProgress") || [],
-          review: data.tasks.filter((task: Task) => task.status === "review") || [],
-          completed: data.tasks.filter((task: Task) => task.status === "completed") || [],
-        }
-
-        setTasks(groupedTasks)
-        toast.success("Trelloと同期しました", {
-          description: `${data.tasks.length}個のタスクを同期しました。`,
-        })
-      } else {
-        throw new Error(data.error || "Unknown error")
-      }
-    } catch (error) {
-      console.error("Error syncing with Trello:", error)
-      // エラーメッセージを安全に抽出
-      const errorMessage =
-        error && typeof error === "object" && "message" in error ? String(error.message) : "Unknown error occurred"
-
-      toast.error("Trelloとの同期に失敗しました", {
-        description: `エラー: ${errorMessage}。APIキーとトークンを確認してください。`,
-      })
-    } finally {
-      setSyncingWithTrello(false)
     }
   }
 
@@ -263,19 +207,6 @@ export default function WorkflowPage() {
     try {
       taskService.updateTask(taskToMove.id, { status: destinationStatus })
       toast.success(`タスクを「${statusLabels[destinationStatus]}」に移動しました`)
-
-      // Trelloも更新
-      fetch("/api/trello/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          task: { ...taskToMove, status: destinationStatus },
-        }),
-      }).catch((error) => {
-        console.error("Error syncing with Trello:", error)
-      })
     } catch (error) {
       console.error("Error updating task status:", error)
       toast.error("タスクの更新に失敗しました")
@@ -296,10 +227,6 @@ export default function WorkflowPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">工程管理</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={syncWithTrello} disabled={syncingWithTrello}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${syncingWithTrello ? "animate-spin" : ""}`} />
-            Trelloと同期
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
